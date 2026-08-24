@@ -133,8 +133,8 @@ Supported agents:
 
 Examples:
   fintech skills install
-  fintech skills install efi5
-  fintech skills install efi5 another-skill`);
+  fintech skills install eli5
+  fintech skills install eli5 another-skill`);
 }
 
 export function skillsInstalledHelp(): void {

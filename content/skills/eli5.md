@@ -1,5 +1,5 @@
 ---
-title: /efi5
+title: /eli5
 author: Yaron Horsky
 author_email: yaronh@moveo.co.il
 tags: []
@@ -7,7 +7,7 @@ created: 2026-08-24T00:00:00.000Z
 updated: 2026-08-24T00:00:00.000Z
 ---
 
-# /efi5
+# /eli5
 
 Explain like I am someone who knows nothing about this topic, using an HTML artifact with big pictures and few words.
 
