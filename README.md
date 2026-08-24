@@ -10,7 +10,9 @@ Fintech Brain helps developers and product managers share reusable skills, workf
 curl -fsSL https://raw.githubusercontent.com/horskyyaron/fintechos/master/install.sh | bash
 ```
 
-The installer clones the repo into `~/.local/share/fintech-brain`, installs the `fintech` CLI, runs setup, installs shell completion, and prepares your coding-agent skill folders.
+The installer clones the repo into `~/.local/share/fintech-brain`, installs the `fintech` CLI, runs setup automatically, installs shell completion, and prepares your coding-agent skill folders.
+
+Automatic setup uses your global Git name and email when available, falls back to local machine defaults, and selects `opencode` as the default coding agent. You can override those values with environment variables during install.
 
 It checks for `git` and `curl` first. If either is missing, it checks for Homebrew, prompts to install Homebrew when needed, and installs the missing dependency with Homebrew.
 
@@ -41,10 +43,20 @@ FINTECH_AGENTS="opencode,claude" \
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/horskyyaron/fintechos/master/install.sh)"
 ```
 
+Configure identity during setup:
+
+```bash
+FINTECH_NAME="Yaron Horsky" \
+  FINTECH_EMAIL="yaron@example.com" \
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/horskyyaron/fintechos/master/install.sh)"
+```
+
 Combine overrides:
 
 ```bash
 FINTECH_INSTALL_DIR="$HOME/Projects/fintech-brain" \
+  FINTECH_NAME="Yaron Horsky" \
+  FINTECH_EMAIL="yaron@example.com" \
   FINTECH_AGENTS="opencode,claude" \
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/horskyyaron/fintechos/master/install.sh)"
 ```
