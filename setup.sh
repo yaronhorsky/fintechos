@@ -5,9 +5,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FINTECH_BIN="$ROOT_DIR/bin/fintech.js"
 LOCAL_BIN_DIR="$HOME/.local/bin"
 LOCAL_FINTECH_BIN="$LOCAL_BIN_DIR/fintech"
-COMPLETION_DIR="$HOME/.config/fintech-brain/completions"
-MARKER_START="# >>> fintech-brain initialize >>>"
-MARKER_END="# <<< fintech-brain initialize <<<"
 MISE_BIN="$HOME/.local/bin/mise"
 USE_COLOR=0
 
@@ -223,43 +220,9 @@ check_dependencies() {
   prompt_continue
 }
 
-append_once() {
-  local file="$1"
-  local content="$2"
-  local replacement
-
-  touch "$file"
-  replacement="$(printf '\n%s\n%s\n%s\n' "$MARKER_START" "$content" "$MARKER_END")"
-
-  if grep -Fq "$MARKER_START" "$file"; then
-    awk -v start="$MARKER_START" -v end="$MARKER_END" -v replacement="$replacement" '
-      $0 == start { print replacement; skipping = 1; next }
-      $0 == end { skipping = 0; next }
-      !skipping { print }
-    ' "$file" > "$file.tmp"
-    mv "$file.tmp" "$file"
-    success "Updated shell config: $file"
-    return
-  fi
-
-  printf '%s' "$replacement" >> "$file"
-
-  success "Updated shell config: $file"
-}
-
 install_completion() {
-  mkdir -p "$COMPLETION_DIR"
-
-  "$FINTECH_BIN" completion zsh > "$COMPLETION_DIR/_fintech"
-  append_once "$HOME/.zshrc" "export PATH=\"$LOCAL_BIN_DIR:\$PATH\"\nfpath=(\"$COMPLETION_DIR\" \$fpath)\nautoload -Uz compinit\ncompinit"
-  success 'Installed zsh completion. Restart shell or run: source ~/.zshrc'
-
-  "$FINTECH_BIN" completion bash > "$COMPLETION_DIR/fintech.bash"
-  append_once "$HOME/.bashrc" "export PATH=\"$LOCAL_BIN_DIR:\$PATH\"\n[ -f \"$COMPLETION_DIR/fintech.bash\" ] && source \"$COMPLETION_DIR/fintech.bash\""
-  success 'Installed bash completion. Restart shell or run: source ~/.bashrc'
-
-  rm -f "$HOME"/.zcompdump "$HOME"/.zcompdump-*
-  info 'Cleared zsh completion cache. Restart shell or run: source ~/.zshrc'
+  "$FINTECH_BIN" completion zsh --install
+  "$FINTECH_BIN" completion bash --install
 }
 
 install_fintech_command() {

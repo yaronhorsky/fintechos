@@ -1,11 +1,19 @@
 import { completionHelp, hasHelpFlag } from "../help.js";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 const COMMANDS = ["setup", "doctor", "skills", "version", "help", "completion"];
 const SETUP_OPTIONS = ["--reset", "--name", "--email", "--agents", "--help", "-h"];
 const HELP_OPTIONS = ["--help", "-h"];
 const SKILLS_COMMANDS = ["list", "publish", "install", "installed", "--help", "-h"];
 const SKILLS_PUBLISH_OPTIONS = ["--help", "-h"];
+const COMPLETION_OPTIONS = ["--install", "--help", "-h"];
 const SHELLS = ["bash", "zsh"];
+const MARKER_START = "# >>> fintech-brain initialize >>>";
+const MARKER_END = "# <<< fintech-brain initialize <<<";
+
+type Shell = "bash" | "zsh";
 
 export function completion(args: string[]): void {
   if (hasHelpFlag(args)) {
@@ -13,20 +21,89 @@ export function completion(args: string[]): void {
     return;
   }
 
-  const [shell] = args;
+  const [shell, ...options] = args;
+  const install = options.includes("--install");
 
   if (shell === "bash") {
-    console.log(bashCompletion());
+    handleCompletion("bash", install);
     return;
   }
 
   if (shell === "zsh") {
-    console.log(zshCompletion());
+    handleCompletion("zsh", install);
     return;
   }
 
   completionHelp();
   process.exitCode = 1;
+}
+
+function handleCompletion(shell: Shell, install: boolean): void {
+  const script = shell === "bash" ? bashCompletion() : zshCompletion();
+
+  if (!install) {
+    console.log(script);
+    return;
+  }
+
+  installCompletion(shell, script);
+}
+
+function installCompletion(shell: Shell, script: string): void {
+  const home = homedir();
+  const localBinDir = join(home, ".local", "bin");
+  const completionDir = join(home, ".config", "fintech-brain", "completions");
+  const completionFile = shell === "zsh" ? join(completionDir, "_fintech") : join(completionDir, "fintech.bash");
+  const shellConfig = shell === "zsh" ? join(home, ".zshrc") : join(home, ".bashrc");
+  const initBlock = shell === "zsh"
+    ? [
+      `export PATH="${localBinDir}:$PATH"`,
+      `fpath=("${completionDir}" $fpath)`,
+      "autoload -Uz compinit",
+      "compinit",
+    ].join("\n")
+    : [
+      `export PATH="${localBinDir}:$PATH"`,
+      `[ -f "${completionFile}" ] && source "${completionFile}"`,
+    ].join("\n");
+
+  mkdirSync(completionDir, { recursive: true });
+  writeFileSync(completionFile, `${script}\n`);
+  appendOnce(shellConfig, initBlock);
+
+  if (shell === "zsh") {
+    clearZshCompletionCache(home);
+  }
+
+  console.log(`Installed ${shell} completion: ${completionFile}`);
+  console.log(`Updated shell config: ${shellConfig}`);
+  console.log("To activate completion in this shell now, run:");
+  console.log(`  source <(fintech completion ${shell})`);
+}
+
+function clearZshCompletionCache(home: string): void {
+  for (const entry of readdirSync(home)) {
+    if (entry === ".zcompdump" || entry.startsWith(".zcompdump-")) {
+      rmSync(join(home, entry), { force: true });
+    }
+  }
+}
+
+function appendOnce(file: string, content: string): void {
+  const replacement = `\n${MARKER_START}\n${content}\n${MARKER_END}\n`;
+  const existing = existsSync(file) ? readFileSync(file, "utf8") : "";
+
+  if (existing.includes(MARKER_START)) {
+    const pattern = new RegExp(`${escapeRegExp(MARKER_START)}[\\s\\S]*?${escapeRegExp(MARKER_END)}\\n?`);
+    writeFileSync(file, existing.replace(pattern, replacement.trimStart()));
+    return;
+  }
+
+  writeFileSync(file, `${existing}${replacement}`);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function bashCompletion(): string {
@@ -36,6 +113,7 @@ function bashCompletion(): string {
   const skillsCommands = SKILLS_COMMANDS.join(" ");
   const skillsPublishOptions = SKILLS_PUBLISH_OPTIONS.join(" ");
   const shells = SHELLS.join(" ");
+  const completionOptions = COMPLETION_OPTIONS.join(" ");
 
   return `# fintech completion for bash
 _fintech_completion() {
@@ -67,7 +145,11 @@ _fintech_completion() {
       fi
       ;;
     completion)
-      COMPREPLY=( $(compgen -W "${shells} ${helpOptions}" -- "$cur") )
+      if [[ $COMP_CWORD -eq 2 ]]; then
+        COMPREPLY=( $(compgen -W "${shells}" -- "$cur") )
+      else
+        COMPREPLY=( $(compgen -W "${completionOptions}" -- "$cur") )
+      fi
       ;;
   esac
 }
@@ -82,17 +164,19 @@ function zshCompletion(): string {
   const skillsCommands = SKILLS_COMMANDS.join(" ");
   const skillsPublishOptions = SKILLS_PUBLISH_OPTIONS.join(" ");
   const shells = SHELLS.join(" ");
+  const completionOptions = COMPLETION_OPTIONS.join(" ");
 
   return `#compdef fintech
 # fintech completion for zsh
 _fintech() {
-  local -a commands setup_options help_options skills_commands skills_publish_options shells
+  local -a commands setup_options help_options skills_commands skills_publish_options shells completion_options
   commands=(${commands})
   setup_options=(${setupOptions})
   help_options=(${helpOptions})
   skills_commands=(${skillsCommands})
   skills_publish_options=(${skillsPublishOptions})
   shells=(${shells})
+  completion_options=(${completionOptions})
 
   _arguments -C \
     '1:command:->command' \
@@ -120,13 +204,21 @@ _fintech() {
           fi
           ;;
         completion)
-          compadd -a shells
-          compadd -a help_options
+          if (( CURRENT == 3 )); then
+            compadd -a shells
+          else
+            compadd -a completion_options
+          fi
           ;;
       esac
       ;;
   esac
 }
+
+if ! (( $+functions[compdef] )); then
+  autoload -Uz compinit
+  compinit
+fi
 
 compdef _fintech fintech`;
 }
