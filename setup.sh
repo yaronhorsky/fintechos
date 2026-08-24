@@ -220,6 +220,53 @@ check_dependencies() {
   prompt_continue
 }
 
+append_once() {
+  local file="$1"
+  local content="$2"
+  local replacement
+  local line
+  local skipping=0
+  local replaced=0
+
+  touch "$file"
+  replacement="$(printf '\n%s\n%s\n%s\n' "$MARKER_START" "$content" "$MARKER_END")"
+
+  if grep -Fq "$MARKER_START" "$file"; then
+    : > "$file.tmp"
+
+    while IFS= read -r line || [ -n "$line" ]; do
+      if [ "$line" = "$MARKER_START" ]; then
+        printf '%s' "$replacement" >> "$file.tmp"
+        skipping=1
+        replaced=1
+        continue
+      fi
+
+      if [ "$skipping" = "1" ]; then
+        if [ "$line" = "$MARKER_END" ]; then
+          skipping=0
+        fi
+        continue
+      fi
+
+      printf '%s\n' "$line" >> "$file.tmp"
+    done < "$file"
+
+    if [ "$replaced" != "1" ]; then
+      rm -f "$file.tmp"
+      error "Could not update shell config: $file"
+      exit 1
+    fi
+
+    mv "$file.tmp" "$file"
+    success "Updated shell config: $file"
+    return
+  fi
+
+  printf '%s' "$replacement" >> "$file"
+
+  success "Updated shell config: $file"
+}
 install_completion() {
   "$FINTECH_BIN" completion zsh --install
   "$FINTECH_BIN" completion bash --install
