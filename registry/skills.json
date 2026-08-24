@@ -1,9 +1,9 @@
 {
   "skills": [
     {
-      "id": "efi5",
-      "title": "/efi5",
-      "path": "content/skills/efi5.md",
+      "id": "eli5",
+      "title": "/eli5",
+      "path": "content/skills/eli5.md",
       "description": "Explain a topic for total beginners using an HTML artifact with big pictures and few words.",
       "author": "Yaron Horsky",
       "author_email": "yaronh@moveo.co.il",
