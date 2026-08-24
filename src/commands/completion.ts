@@ -77,7 +77,7 @@ function installCompletion(shell: Shell, script: string): void {
 
   console.log(`Installed ${shell} completion: ${completionFile}`);
   console.log(`Updated shell config: ${shellConfig}`);
-  console.log("To activate completion in this shell now, run:");
+  console.log("Restart your shell, or activate completion in this shell by running:");
   console.log(`  source <(fintech completion ${shell})`);
 }
 
