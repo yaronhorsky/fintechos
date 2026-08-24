@@ -60,14 +60,17 @@ export function completionHelp(): void {
   console.log(`Usage:
   fintech completion <bash|zsh> [options]
 
-Generate shell completion script.
+Generate or install shell completion.
 
 Options:
+  --install   Write completion file and update shell startup config
   -h, --help  Print this help
 
 Examples:
   fintech completion zsh
-  fintech completion bash`);
+  fintech completion bash
+  fintech completion zsh --install
+  source <(fintech completion zsh)`);
 }
 
 export function skillsHelp(): void {

@@ -5,9 +5,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FINTECH_BIN="$ROOT_DIR/bin/fintech.js"
 LOCAL_BIN_DIR="$HOME/.local/bin"
 LOCAL_FINTECH_BIN="$LOCAL_BIN_DIR/fintech"
-COMPLETION_DIR="$HOME/.config/fintech-brain/completions"
-MARKER_START="# >>> fintech-brain initialize >>>"
-MARKER_END="# <<< fintech-brain initialize <<<"
 MISE_BIN="$HOME/.local/bin/mise"
 USE_COLOR=0
 
@@ -223,43 +220,9 @@ check_dependencies() {
   prompt_continue
 }
 
-append_once() {
-  local file="$1"
-  local content="$2"
-  local replacement
-
-  touch "$file"
-  replacement="$(printf '\n%s\n%s\n%s\n' "$MARKER_START" "$content" "$MARKER_END")"
-
-  if grep -Fq "$MARKER_START" "$file"; then
-    awk -v start="$MARKER_START" -v end="$MARKER_END" -v replacement="$replacement" '
-      $0 == start { print replacement; skipping = 1; next }
-      $0 == end { skipping = 0; next }
-      !skipping { print }
-    ' "$file" > "$file.tmp"
-    mv "$file.tmp" "$file"
-    success "Updated shell config: $file"
-    return
-  fi
-
-  printf '%s' "$replacement" >> "$file"
-
-  success "Updated shell config: $file"
-}
-
 install_completion() {
-  mkdir -p "$COMPLETION_DIR"
-
-  "$FINTECH_BIN" completion zsh > "$COMPLETION_DIR/_fintech"
-  append_once "$HOME/.zshrc" "export PATH=\"$LOCAL_BIN_DIR:\$PATH\"\nfpath=(\"$COMPLETION_DIR\" \$fpath)\nautoload -Uz compinit\ncompinit"
-  success 'Installed zsh completion. Restart shell or run: source ~/.zshrc'
-
-  "$FINTECH_BIN" completion bash > "$COMPLETION_DIR/fintech.bash"
-  append_once "$HOME/.bashrc" "export PATH=\"$LOCAL_BIN_DIR:\$PATH\"\n[ -f \"$COMPLETION_DIR/fintech.bash\" ] && source \"$COMPLETION_DIR/fintech.bash\""
-  success 'Installed bash completion. Restart shell or run: source ~/.bashrc'
-
-  rm -f "$HOME"/.zcompdump "$HOME"/.zcompdump-*
-  info 'Cleared zsh completion cache. Restart shell or run: source ~/.zshrc'
+  "$FINTECH_BIN" completion zsh --install
+  "$FINTECH_BIN" completion bash --install
 }
 
 install_fintech_command() {
@@ -283,6 +246,49 @@ EOF
   esac
 }
 
+default_setup_name() {
+  local name
+  name="$(git config --global user.name 2>/dev/null || true)"
+
+  if [ -n "$name" ]; then
+    printf '%s' "$name"
+    return
+  fi
+
+  name="$(id -F 2>/dev/null || true)"
+
+  if [ -n "$name" ]; then
+    printf '%s' "$name"
+    return
+  fi
+
+  printf '%s' "${USER:-Fintech User}"
+}
+
+default_setup_email() {
+  local email
+  email="$(git config --global user.email 2>/dev/null || true)"
+
+  if [ -n "$email" ]; then
+    printf '%s' "$email"
+    return
+  fi
+
+  printf '%s' "${USER:-user}@localhost.local"
+}
+
+build_setup_args() {
+  SETUP_ARGS=()
+
+  if [ "${FINTECH_SETUP_RESET:-}" = "1" ]; then
+    SETUP_ARGS+=("--reset")
+  fi
+
+  SETUP_ARGS+=("--name" "${FINTECH_NAME:-$(default_setup_name)}")
+  SETUP_ARGS+=("--email" "${FINTECH_EMAIL:-$(default_setup_email)}")
+  SETUP_ARGS+=("--agents" "${FINTECH_AGENTS:-opencode}")
+}
+
 check_dependencies
 
 section 'Installing dependencies'
@@ -295,24 +301,7 @@ section 'Installing fintech command'
 install_fintech_command
 
 section 'Running fintech setup'
-SETUP_ARGS=()
-
-if [ "${FINTECH_SETUP_RESET:-}" = "1" ]; then
-  SETUP_ARGS+=("--reset")
-fi
-
-if [ -n "${FINTECH_NAME:-}" ]; then
-  SETUP_ARGS+=("--name" "$FINTECH_NAME")
-fi
-
-if [ -n "${FINTECH_EMAIL:-}" ]; then
-  SETUP_ARGS+=("--email" "$FINTECH_EMAIL")
-fi
-
-if [ -n "${FINTECH_AGENTS:-}" ]; then
-  SETUP_ARGS+=("--agents" "$FINTECH_AGENTS")
-fi
-
+build_setup_args
 "$FINTECH_BIN" setup "${SETUP_ARGS[@]}"
 
 section 'Installing shell completion'
